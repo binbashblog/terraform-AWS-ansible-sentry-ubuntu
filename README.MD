@@ -2,7 +2,7 @@
 
 ## Requirements:
 
-aws-cli\
+aws-cli
 ```
 curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
 unzip awscliv2.zip
@@ -17,7 +17,7 @@ AWS cloud account with permissions to create a ec2 instance\
 boto & boto3 (python3 -m pip install --user boto boto3)
 
 ## Prereqs for ansible:
-Run\  
+Run  
 ```
 ssh-keygen -t rsa -f ~/.ssh/ubuntu -C `whoami`   
 chmod 400 ~/.ssh/ubuntu
@@ -30,13 +30,13 @@ chmod 400 ~/.ssh/ubuntu
 	 
 ## Create the AWS user and obtain the Access Key and Secret Key
 
-* Go to the AWS Console > IAM > Create User.\
-    * User name: terraform_iam_user\
-    * Tick 'Access key - Programmatic access', click Next: Permissions\
-    * Click 'Attach existing policies directly > AdministratorAccess', click Next: Tags\
-    * Click 'Next: Review'\
-    * Click 'Create user'\
-    * Copy the 'Access key ID' & 'Secret access key'\
+* Go to the AWS Console > IAM > Create User.
+    * User name: terraform_iam_user
+    * Tick 'Access key - Programmatic access', click Next: Permissions
+    * Click 'Attach existing policies directly > AdministratorAccess', click Next: Tags
+    * Click 'Next: Review'
+    * Click 'Create user'
+    * Copy the 'Access key ID' & 'Secret access key'
     * Rename the terraform.tfvars.example file to terraform.tfvars and paste in the access key and secret key
 
 
