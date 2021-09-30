@@ -1,0 +1,192 @@
+---
+- hosts: all
+  become: yes
+  tasks:
+     - name: NGINX | Install Nginx
+       become: yes
+       apt: 
+         name: nginx
+         state: present 
+         update_cache: true
+
+     - name: NGINX | Install openssl
+       become: yes
+       apt:
+         name: openssl
+         state: present
+         update_cache: true
+
+     - name: NGINX | Create self-signed cert
+       command: openssl req -x509 -nodes -subj '/CN={{ ansible_hostname }}' -days 365 -newkey rsa:4096 -sha256 -keyout /etc/ssl/private/nginx-selfsigned.key -out /etc/ssl/certs/nginx-selfsigned.crt
+       args:
+         creates: /etc/ssl/certs/nginx-selfsigned.crt
+
+     - name: NGINX | Create dh params
+       command: openssl dhparam -out /etc/ssl/certs/dhparam.pem 2048 
+       args: 
+         creates: /etc/ssl/certs/dhparam.pem
+
+     - name: NGINX | Disable the default NGINX virtual host
+       become: yes
+       command:
+         cmd: unlink /etc/nginx/sites-enabled/default
+       args:
+         removes: /etc/nginx/sites-enabled/default
+
+     - name: NGINX | Create a blank NGINX conf file for Sentry
+       become: yes
+       file:
+         path: /etc/nginx/sites-available/sentry_proxy.conf
+         state: touch
+
+     - name: NGINX | Configure NGINX conf file
+       become: yes
+       blockinfile:
+         path: /etc/nginx/sites-available/sentry_proxy.conf
+         marker: "# {mark} ANSIBLE MANAGED BLOCK #"
+         marker_begin: "BEGIN"
+         marker_end: "END"
+         block: |
+           server {
+               listen 80 default_server;
+               server_name _;
+               return 404;
+           }
+                 
+           server {
+               listen 443 ssl;
+               server_name {{ ansible_hostname }};
+
+               ssl_certificate /etc/ssl/certs/nginx-selfsigned.crt;
+               ssl_certificate_key /etc/ssl/private/nginx-selfsigned.key;
+               ssl_dhparam /etc/ssl/certs/dhparam.pem;
+
+               if ($host != "{{ ansible_hostname }}") {
+                return 404;
+               }
+               
+
+               location / {
+                     proxy_set_header        Host $host;
+                     proxy_set_header        X-Real-IP $remote_addr;
+                     proxy_set_header        X-Forwarded-For $proxy_add_x_forwarded_for;
+                     proxy_set_header        X-Forwarded-Proto $scheme;
+
+                     proxy_pass http://localhost:9000;
+
+                  proxy_read_timeout  90;
+               }
+           }
+
+     - name: NGINX | Link the Sentry conf file
+       become: yes
+       command:
+         cmd: ln -s /etc/nginx/sites-available/sentry_proxy.conf /etc/nginx/sites-enabled/sentry_proxy.conf
+       args:
+         creates: /etc/nginx/sites-enabled/sentry_proxy.conf
+
+     - name: NGINX | Restart NGINX
+       become: yes
+       service:
+         name: nginx
+         state: restarted
+         enabled: yes      
+
+     - name: Sentry | Install unzip
+       become: yes
+       apt:
+         name: unzip
+         state: present
+         update_cache: true
+
+     - name: Docker | ensure repo key is installed
+       become: yes
+       apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+     - name: Docker | ensure docker repo is available
+       become: yes
+       apt_repository: 
+         repo: 'deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable' 
+         state: present
+
+     - name: Docker | ensure docker and dependencies are installed
+       become: yes
+       apt: 
+         pkg: 
+           - apt-transport-https
+           - ca-certificates 
+           - curl 
+           - software-properties-common
+           - docker-ce 
+           - python3-pip
+         state: present
+         update_cache: true
+
+     - name: Docker | Restart Docker
+       become: yes
+       service:
+         name: docker
+         state: restarted
+         enabled: yes
+
+     - name: Docker | Install docker-compose via pip
+       pip:
+         name: docker-compose>1.28.0
+
+     # Not enough to prevent the prompt in the new release of sentry, also requires running install.sh with "--no-user-prompt"
+     - name: Sentry | prevent interactive install step by defining the CI env variable
+       become: no
+       shell: "CI=1"
+
+     - name: Sentry | Set CI env variable permanently
+       become: no
+       lineinfile: 
+         dest: '/home/{{ ansible_user }}/.bashrc'
+         line: 'export CI=1'
+         insertafter: 'EOF'
+
+     - name: Sentry | source .bashrc to load the CI env variable
+       become: no
+       shell: " . /home/{{ ansible_user }}/.bashrc && echo $CI"
+       args:
+         executable: /bin/bash
+
+     - name: Sentry | get the release of sentry
+       become: no
+       get_url: 
+         url: https://github.com/getsentry/onpremise/archive/refs/tags/21.9.0.zip 
+         dest: "/home/{{ ansible_user }}/sentry.zip"
+
+     - name: Sentry | extract sentry.zip
+       unarchive: 
+         src: "/home/{{ ansible_user }}/sentry.zip"
+         dest: "/home/{{ ansible_user}}" 
+         owner: "{{ ansible_user }}"
+         group: "{{ ansible_user }}"
+         remote_src: yes
+
+     - name: Sentry | rename onpremise dir to sentry_install
+       become: no
+       shell: "mv -f /home/{{ ansible_user }}/onpremise* /home/{{ ansible_user }}/sentry_install"
+       args:
+         creates: "/home/{{ ansible_user }}/sentry_install"
+       
+     # provide --no-user-prompt switch when running install.sh to stop the interactive prompt, this changed in the new sentry release
+     - name: Sentry | execute the sentry script
+       become: yes
+       shell: | 
+         chmod +x /home/{{ ansible_user }}/sentry_install/install.sh 
+         cd /home/{{ ansible_user }}/sentry_install/
+         ./install.sh --no-user-prompt
+         touch installed
+       args:
+         creates: "/home/{{ ansible_user }}/sentry_install/installed"
+       # ^ don't rerun instller if installed
+
+     - name: Sentry | run docker-compose -d
+       become: yes
+       shell: |
+         cd /home/{{ ansible_user }}/sentry_install
+         docker-compose up -d

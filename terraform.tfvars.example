@@ -1,0 +1,16 @@
+instance_name           = "sentry-vm"
+instance_name_fqdn	= "sentry-vm.example.org"
+instance	        = "t3.medium"
+ansible_playbook_name   = "sentry-playbook.yml"
+region                  = "eu-west-1"
+ssh_username            = "ubuntu"
+ssh_pub_key_path        = "~/.ssh/ubuntu.pub"
+ssh_pri_key_path        = "~/.ssh/ubuntu"
+
+ami			= "ami-0c1aea1d6f3bdd76b"
+
+aws_access_key 		= "ChAnGeMe"
+aws_secret_key 		= "cHaNgEmE"
+
+tfstate_bucket 		= ""
+tfstate_lock     	= ""
