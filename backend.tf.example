@@ -1,0 +1,13 @@
+terraform {
+  backend "s3"{
+    // Change the bucket name to YOUR bucket
+    bucket      	= "my-terraform-tfstate"
+    key 		= "sentry/terraform.tfstate"
+    region		= "eu-west-1"
+
+    // Replace with your DynamoDB table name
+    dynamodb_table      = "my-terraform-tfstate-lock"
+    encrypt		= true
+  }
+}
+
