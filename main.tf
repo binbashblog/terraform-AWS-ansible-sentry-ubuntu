@@ -54,26 +54,16 @@ variable "aws_access_key" {}
 
 variable "aws_secret_key" {}
 
-/*
-module "tfstate_s3_bucket" {
-  source = "git::https://github.com/binbashblog/terraform-tfstate-bucket_AWS-S3_module.git"
-
-  tfstate_bucket_name = var.tfstate_bucket
-
-  tags = {
-    Terraform   = "true"
-    Environment = "dev"
-  }
+variable "tfstate_bucket" {}
+variable "tfstate_lock" {}
+variable "tfstate_bucket_name" {
+  type = string
+}
+variable "tfstate_lock_name" {
+  type = string
+}
+locals {
+  tfstate_bucket_name = "${var.tfstate_bucket}"
+  tfstate_lock_name = "${var.tfstate_lock}"
 }
 
-module "tfstate_lock_dynamodb_table" {
-  source = "git::https://github.com/binbashblog/terraform-tfstate-lock-dynamodb-table_AWS-S3_module.git"
-
-  tfstate_lock_name = var.tfstate_lock
-
-  tags = {
-    Terraform   = "true"
-    Environment = "dev"
-  }
-}
-*/

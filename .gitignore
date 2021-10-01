@@ -2,4 +2,6 @@ terraform.tfvars
 .terraform*
 .vagrant
 backend.tf
+S3_tfstate-lock_dynamodb.tf
+S3_tfstate_bucket.tf
 
